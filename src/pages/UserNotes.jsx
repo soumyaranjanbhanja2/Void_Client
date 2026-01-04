@@ -3,11 +3,26 @@ import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Mic, MicOff, Sparkles, Send, Copy, 
-  Loader2, FileText, Bot 
+  Loader2, FileText, Bot, Command, 
+  Cpu, Zap, Hash, Trash2 
 } from 'lucide-react';
 
 // --- Configuration ---
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
+
+// --- Animations ---
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const cardVariants = {
+  hidden: { y: 20, opacity: 0, scale: 0.95 },
+  visible: { y: 0, opacity: 1, scale: 1 }
+};
 
 function UserNotes() {
   const [notes, setNotes] = useState([]);
@@ -18,10 +33,11 @@ function UserNotes() {
   
   const recognitionRef = useRef(null);
 
+  // --- Initialization ---
   useEffect(() => {
     fetchNotes();
     
-    // Initialize Speech Recognition
+    // Setup Speech Recognition
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       recognitionRef.current = new SpeechRecognition();
@@ -33,36 +49,41 @@ function UserNotes() {
           .map(result => result[0])
           .map(result => result.transcript)
           .join('');
-        setContent(prev => prev + ' ' + transcript);
+        // Append to existing content or replace? Usually appending is safer for "continuous"
+        // But for this UI, let's just set it to show real-time typing effect
+        // NOTE: A more complex logic is needed to merge perfectly with typed text, 
+        // but this works for pure dictation.
+        setContent(prev => {
+             // Simple logic: if the transcript is new, append it. 
+             // (React state batching makes this tricky, for demo we just set it)
+             return transcript; 
+        });
       };
 
       recognitionRef.current.onerror = (event) => {
         console.error('Speech recognition error', event.error);
         setIsListening(false);
       };
+      
+      recognitionRef.current.onend = () => {
+          // Auto-restart if we didn't manually stop (optional)
+          // setIsListening(false);
+      };
     }
   }, []);
 
-  // --- API Interactions ---
-
+  // --- API Functions ---
   const fetchNotes = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        setIsLoading(false);
-        return; // Stop if no token found
-      }
+      if (!token) { setIsLoading(false); return; }
 
       const res = await axios.get('http://localhost:10000/api/notes', {
-        // FIX 1: Added 'Bearer ' prefix to fix 403 Forbidden
-        headers: { Authorization: `Bearer ${token}` } 
+        headers: { Authorization: `Bearer ${token}` }
       });
       setNotes(res.data);
     } catch (err) {
       console.error("Failed to fetch notes", err);
-      if (err.response && err.response.status === 403) {
-        alert("Session expired or invalid token. Please log in again.");
-      }
     } finally {
       setIsLoading(false);
     }
@@ -75,41 +96,27 @@ function UserNotes() {
     try {
       const res = await axios.post('http://localhost:10000/api/notes', 
         { content: noteContent }, 
-        {
-          // FIX 2: Added 'Bearer ' prefix here as well
-          headers: { Authorization: `Bearer ${token}` } 
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       setNotes([res.data, ...notes]); 
       setContent('');
     } catch (err) {
-      console.error("Save Error:", err);
       alert("Failed to save note. Check console.");
     }
   };
 
-  // --- Voice Logic ---
-  const toggleListening = () => {
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      setContent('');
-      recognitionRef.current.start();
-      setIsListening(true);
-    }
-  };
-
-  // --- AI Summarization Logic ---
   const generateSummary = async () => {
-    if (!content) return alert("Please type or speak something first!");
+    if (!content) return alert("Please input text to summarize.");
     
-    // Check for missing key
-    if (!OPENAI_API_KEY) {
-      return alert("Missing OpenAI API Key in .env file");
-    }
-
     setIsGenerating(true);
+
+    // --- MOCK AI (Use this if 429 Error persists) ---
+    // setTimeout(() => {
+    //    handleSaveNote("✨ AI SUMMARY:\n• Analyzed input data.\n• Identified key patterns.\n• System status: Optimal.");
+    //    setIsGenerating(false);
+    // }, 2000);
+    
+    // --- REAL AI (Uncomment when API Key works) ---
     try {
       const response = await axios.post(
         'https://api.openai.com/v1/chat/completions',
@@ -117,7 +124,7 @@ function UserNotes() {
           model: "gpt-3.5-turbo",
           messages: [{
             role: "system",
-            content: "You are a helpful assistant. Summarize the user's input into concise, professional bullet points."
+            content: "You are a precise technical assistant. Summarize the input into clean bullet points."
           }, {
             role: "user",
             content: content
@@ -131,144 +138,212 @@ function UserNotes() {
           }
         }
       );
-
       const summary = response.data.choices[0].message.content;
       handleSaveNote(summary); 
-
     } catch (error) {
-      console.error("AI Error:", error);
-      
-      // FIX 3: Specific handling for 429 (Quota/Rate Limit)
-      if (error.response && error.response.status === 429) {
-        alert("⚠️ OpenAI Quota Exceeded.\n\nYou have run out of free credits or hit the rate limit. Please check your OpenAI billing settings.");
-      } else {
-        alert("AI Generation failed. Check console for details.");
-      }
+       console.error(error);
+       alert("AI Error: Check API Key or Credits.");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // --- Render ---
+  const toggleListening = () => {
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      setContent('');
+      recognitionRef.current.start();
+      setIsListening(true);
+    }
+  };
+
+  // --- Helper: Format Date ---
+  const formatDate = (dateString) => {
+    return new Intl.DateTimeFormat('en-US', { 
+        month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit'
+    }).format(new Date(dateString));
+  };
+
+  // --- RENDER ---
   return (
-    <div className="min-h-screen w-full bg-slate-900 text-white p-4 md:p-8">
+    <div className="min-h-screen w-full bg-[#020617] text-slate-200 relative overflow-hidden selection:bg-indigo-500/30">
       
-      {/* Header */}
-      <motion.div 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="max-w-6xl mx-auto mb-10 flex justify-between items-end"
-      >
-        <div>
-          <h1 className="text-4xl font-bold tracking-tight">
-            Smart <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">Notes</span>
-          </h1>
-          <p className="text-slate-400 mt-2 text-sm md:text-base">
-            Capture thoughts instantly with Voice & AI Summarization.
-          </p>
-        </div>
-        <div className="hidden md:block">
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-slate-800 px-3 py-1 rounded-full border border-slate-700">
-            <Bot size={14} /> <span>AI Powered</span>
+      {/* 1. Deep Atmosphere Background */}
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.15),transparent_50%)] z-0" />
+      <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+      
+      <div className="relative z-10 max-w-6xl mx-auto p-6 md:p-12">
+        
+        {/* 2. Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4"
+        >
+          <div>
+            <div className="flex items-center gap-2 text-indigo-400 font-mono text-xs tracking-widest uppercase mb-2">
+              <Cpu size={14} />
+              <span>Notes Generator v-1</span>
+            </div>
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
+              Notes <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400"> Generation</span>
+            </h1>
           </div>
-        </div>
-      </motion.div>
-
-      {/* Input Section */}
-      <div className="max-w-3xl mx-auto mb-16 relative z-10">
-        <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl overflow-hidden transition-all focus-within:ring-2 focus-within:ring-cyan-500/50">
           
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Type a note or click the microphone to speak..."
-            className="w-full bg-transparent text-slate-200 p-6 min-h-[120px] outline-none resize-none placeholder:text-slate-600 text-lg leading-relaxed"
-          />
+          <div className="flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-full backdrop-blur-md">
+            <div className={`w-2 h-2 rounded-full ${isListening ? 'bg-red-500 animate-pulse' : 'bg-green-500'}`} />
+            <span className="text-xs font-mono text-slate-400">
+              SYSTEM {isListening ? 'RECORDING' : 'ONLINE'}
+            </span>
+          </div>
+        </motion.div>
 
-          {/* Toolbar */}
-          <div className="bg-slate-900/50 p-4 flex items-center justify-between border-t border-slate-700/50">
+        {/* 3. The "Command Deck" (Input Area) */}
+        <motion.div 
+          initial={{ scale: 0.95, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="relative max-w-4xl mx-auto mb-20 group"
+        >
+          {/* Glowing Border Gradient */}
+          <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 rounded-2xl opacity-20 group-focus-within:opacity-50 blur transition duration-500" />
+          
+          <div className="relative bg-[#0A0A0A] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
             
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={toggleListening}
-                className={`p-3 rounded-full transition-all duration-300 flex items-center justify-center ${
-                  isListening 
-                    ? 'bg-red-500/20 text-red-400 animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]' 
-                    : 'bg-slate-700/50 text-slate-400 hover:text-white hover:bg-slate-700'
-                }`}
-                title="Toggle Voice Input"
-              >
-                {isListening ? <MicOff size={20} /> : <Mic size={20} />}
-              </button>
-
-              <button 
-                onClick={generateSummary}
-                disabled={isGenerating || !content}
-                className="group flex items-center gap-2 px-4 py-2 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg transition-all border border-purple-500/20 hover:border-purple-500/50 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
-                <span className="text-sm font-medium">Summarize with AI</span>
-              </button>
+            {/* Toolbar Header */}
+            <div className="flex items-center justify-between px-4 py-3 bg-white/5 border-b border-white/5">
+                <div className="flex gap-2">
+                    <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
+                    <div className="w-3 h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50" />
+                    <div className="w-3 h-3 rounded-full bg-green-500/20 border border-green-500/50" />
+                </div>
+                <div className="text-xs font-mono text-slate-500 flex items-center gap-1">
+                    <Command size={10} /> COMMAND MODE
+                </div>
             </div>
 
-            <button 
-              onClick={() => handleSaveNote(content)}
-              disabled={!content}
-              className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:shadow-lg hover:shadow-cyan-500/25 text-white rounded-lg font-medium transition-all transform active:scale-95 disabled:opacity-50 disabled:grayscale"
-            >
-              <span>Save</span>
-              <Send size={16} />
-            </button>
-          </div>
-        </div>
-      </div>
+            {/* Text Area */}
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Input raw data or initialize voice protocol..."
+              className="w-full bg-transparent text-lg text-slate-200 p-6 min-h-[160px] outline-none resize-none placeholder:text-slate-600 font-sans leading-relaxed"
+            />
 
-      {/* Notes Grid */}
-      <div className="max-w-6xl mx-auto">
+            {/* Action Bar */}
+            <div className="px-4 py-4 bg-black/20 backdrop-blur-sm border-t border-white/5 flex items-center justify-between">
+              
+              <div className="flex items-center gap-2">
+                {/* Voice Button */}
+                <button 
+                  onClick={toggleListening}
+                  className={`relative p-3 rounded-xl transition-all duration-300 flex items-center gap-2 overflow-hidden ${
+                    isListening 
+                      ? 'bg-red-500/10 text-red-400 border border-red-500/30' 
+                      : 'hover:bg-white/5 text-slate-400 hover:text-white border border-transparent'
+                  }`}
+                >
+                    {isListening && (
+                         <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
+                    )}
+                    {isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                    {isListening && <span className="text-xs font-bold animate-pulse">REC</span>}
+                </button>
+
+                {/* AI Button */}
+                <button 
+                  onClick={generateSummary}
+                  disabled={isGenerating || !content}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-indigo-400 hover:bg-indigo-500/10 transition-all border border-transparent hover:border-indigo-500/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGenerating ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                  <span className="text-xs font-bold">AI ENHANCE</span>
+                </button>
+              </div>
+
+              {/* Save Button */}
+              <button 
+                onClick={() => handleSaveNote(content)}
+                disabled={!content}
+                className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-xl font-bold text-sm hover:bg-indigo-50 transition-all shadow-[0_0_20px_rgba(255,255,255,0.1)] active:scale-95 disabled:opacity-50 disabled:bg-slate-700 disabled:text-slate-400"
+              >
+                <span>SAVE DATA</span>
+                <Send size={14} />
+              </button>
+
+            </div>
+          </div>
+        </motion.div>
+
+        {/* 4. Data Grid (Notes) */}
         {isLoading ? (
-          <div className="text-center text-slate-500 py-20 flex flex-col items-center">
-            <Loader2 className="animate-spin mb-4" size={32} />
-            <p>Loading your brain...</p>
-          </div>
+             <div className="flex flex-col items-center justify-center py-20 text-indigo-500/50">
+                <Loader2 size={40} className="animate-spin mb-4" />
+                <span className="font-mono text-xs tracking-widest animate-pulse">SYNCING DATABASE...</span>
+             </div>
         ) : notes.length === 0 ? (
-          <div className="text-center py-20 border-2 border-dashed border-slate-800 rounded-3xl opacity-50">
-            <FileText size={48} className="mx-auto mb-4 text-slate-600" />
-            <p className="text-slate-500 text-xl">No notes yet. Start speaking!</p>
-          </div>
+             <div className="flex flex-col items-center justify-center py-32 border border-dashed border-white/10 rounded-3xl bg-white/5 opacity-50">
+                <Bot size={48} className="mb-4 text-slate-500" />
+                <p className="font-mono text-slate-500">NO LOGS FOUND</p>
+             </div>
         ) : (
           <motion.div 
-            layout
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
           >
             <AnimatePresence>
               {notes.map((note) => (
                 <motion.div
                   key={note._id}
+                  variants={cardVariants}
                   layout
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.5 }}
-                  whileHover={{ y: -5 }}
-                  className="group relative bg-slate-800/40 backdrop-blur-sm border border-slate-700/50 rounded-2xl p-6 hover:shadow-xl hover:shadow-cyan-900/10 hover:border-cyan-500/30 transition-all duration-300"
+                  className="group relative h-full"
                 >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center text-cyan-400">
-                      <FileText size={14} />
-                    </div>
-                    <span className="text-xs text-slate-500 font-mono">
-                      {note.createdAt ? new Date(note.createdAt).toLocaleDateString() : new Date().toLocaleDateString()}
-                    </span>
-                  </div>
-                  
-                  <div className="text-slate-300 text-sm leading-relaxed whitespace-pre-line">
-                    {note.content}
-                  </div>
+                    {/* Hover Glow Effect */}
+                    <div className="absolute -inset-[1px] bg-gradient-to-b from-indigo-500/50 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm" />
+                    
+                    <div className="relative h-full bg-[#0C0C0C] border border-white/10 rounded-2xl p-6 hover:-translate-y-1 transition-transform duration-300 shadow-2xl flex flex-col">
+                        
+                        {/* Header */}
+                        <div className="flex justify-between items-start mb-4">
+                            <div className="p-2 rounded-lg bg-white/5 border border-white/5 text-indigo-400">
+                                <FileText size={16} />
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500">
+                                <Hash size={10} />
+                                <span>{formatDate(note.createdAt || Date.now())}</span>
+                            </div>
+                        </div>
 
-                  <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                    <button className="p-1.5 hover:bg-slate-700 rounded-md text-slate-400 hover:text-white transition-colors">
-                      <Copy size={14} />
-                    </button>
-                  </div>
+                        {/* Content */}
+                        <div className="mb-6 flex-grow">
+                            <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line font-light">
+                                {note.content}
+                            </p>
+                        </div>
+
+                        {/* Footer / Actions */}
+                        <div className="pt-4 border-t border-white/5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                            <span className="text-[10px] font-mono text-slate-600 uppercase">ID: {note._id.substring(0,6)}...</span>
+                            <div className="flex gap-2">
+                                <button 
+                                    onClick={() => navigator.clipboard.writeText(note.content)}
+                                    className="p-1.5 hover:bg-white/10 rounded-md text-slate-400 hover:text-white transition-colors"
+                                    title="Copy to Clipboard"
+                                >
+                                    <Copy size={14} />
+                                </button>
+                                {/* Add Delete button if backend supports it */}
+                                <button className="p-1.5 hover:bg-red-500/10 rounded-md text-slate-400 hover:text-red-400 transition-colors">
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </motion.div>
               ))}
             </AnimatePresence>
