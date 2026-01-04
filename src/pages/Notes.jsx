@@ -44,7 +44,7 @@ export default function Notes() {
         {/* Generate Notes */}
         <section className="card col-span-12 md:col-span-6">
           <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-            <FaStickyNote /> Generate notes
+            <FaStickyNote /> Generate Notes
           </h2>
           <p className="text-gray-300 mb-4">Paste content or an outline. Click generate to create a note.</p>
           <textarea
