@@ -1,0 +1,39 @@
+# --- Logs & Runtime ---
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# --- Dependencies ---
+node_modules
+.pnpm-store
+
+# --- Build Output ---
+dist
+dist-ssr
+build
+coverage
+
+# --- Security & Environment Variables (CRITICAL) ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+# Block the typo version too, just in case
+env
+
+# --- Editor & OS Files ---
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+Thumbs.db
