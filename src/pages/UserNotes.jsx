@@ -4,12 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Mic, MicOff, Sparkles, Send, Copy, 
   Loader2, FileText, Bot, Command, 
-  Cpu, Zap, Hash, Trash2 
+  Cpu, Hash, Trash2 
 } from 'lucide-react';
-
-// --- Configuration ---
-// Make sure you have VITE_OPENAI_API_KEY in your .env file
-const OPENAI_API_KEY = import.meta.env.OPENAI_API_KEY ;
 
 // --- Animations ---
 const containerVariants = {
@@ -72,7 +68,7 @@ function UserNotes() {
       const token = localStorage.getItem('token');
       if (!token) { setIsLoading(false); return; }
 
-      // UPDATED: Using live Render URL
+      // Use your Render Backend URL
       const res = await axios.get('https://void-server-6.onrender.com/api/notes', {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -89,7 +85,6 @@ function UserNotes() {
     
     const token = localStorage.getItem('token');
     try {
-      // UPDATED: Using live Render URL
       const res = await axios.post('https://void-server-6.onrender.com/api/notes', 
         { content: noteContent }, 
         { headers: { Authorization: `Bearer ${token}` } }
@@ -101,44 +96,33 @@ function UserNotes() {
     }
   };
 
+  // --- UPDATED AI FUNCTION (Fixes the Error) ---
   const generateSummary = async () => {
     if (!content) return alert("Please input text to summarize.");
     
     setIsGenerating(true);
+    const token = localStorage.getItem('token');
 
-    // --- MOCK AI (Uncomment if you want to save credits) ---
-    // setTimeout(() => {
-    //   handleSaveNote("✨ AI SUMMARY:\n• Analyzed input data.\n• Identified key patterns.\n• System status: Optimal.");
-    //   setIsGenerating(false);
-    // }, 2000);
-    
-    // --- REAL AI ---
     try {
+      // ✅ Correct: Call YOUR backend, not OpenAI directly
       const response = await axios.post(
-        'https://api.openai.com/v1/chat/completions',
-        {
-          model: "gpt-3.5-turbo",
-          messages: [{
-            role: "system",
-            content: "You are a precise technical assistant. Summarize the input into clean bullet points."
-          }, {
-            role: "user",
-            content: content
-          }],
-          max_tokens: 150
-        },
-        {
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'Content-Type': 'application/json'
-          }
+        'https://void-server-6.onrender.com/api/ai/summarize',
+        { text: content },
+        { 
+          headers: { 
+            'Authorization': `Bearer ${token}`, // Pass token for security
+            'Content-Type': 'application/json' 
+          } 
         }
       );
-      const summary = response.data.choices[0].message.content;
+
+      // The backend returns { content: "summary text..." }
+      const summary = response.data.content;
       handleSaveNote(summary); 
+
     } catch (error) {
-       console.error(error);
-       alert("AI Error: Check API Key or Credits.");
+       console.error("AI Generation Error:", error);
+       alert("AI Error: Check backend logs or credits.");
     } finally {
       setIsGenerating(false);
     }
@@ -333,7 +317,6 @@ function UserNotes() {
                                 >
                                     <Copy size={14} />
                                 </button>
-                                {/* Add Delete button if backend supports it */}
                                 <button className="p-1.5 hover:bg-red-500/10 rounded-md text-slate-400 hover:text-red-400 transition-colors">
                                     <Trash2 size={14} />
                                 </button>
