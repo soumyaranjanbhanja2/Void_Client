@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
-// Reverted to LIVE SERVER as requested
+// ✅ CONNECTING TO LIVE SERVER (No local backend needed)
 const API_URL = 'https://void-server-6.onrender.com/api'; 
 
 // --- ANIMATIONS ---
@@ -40,10 +40,16 @@ function UserNotes() {
   // --- ERROR HANDLER ---
   const handleApiError = (error) => {
     console.error("API Action Failed:", error);
+    
+    // If the server says "403 Forbidden", it means your Token is old.
     if (error.response && (error.response.status === 403 || error.response.status === 401)) {
-      alert("⚠️ Session expired. Please login again.");
+      if(window.confirm("⚠️ Your session has expired. Click OK to Log Out and fix this.")) {
+         localStorage.removeItem('token');
+         window.location.href = '/login'; // Redirect to login
+      }
     } else {
-      alert(`❌ Error: ${error.response?.data?.error || "Connection failed"}`);
+      // General error (like if the backend is missing a feature)
+      alert(`⚠️ Server Error: ${error.response?.data?.error || "Feature not available on Live Server yet."}`);
     }
   };
 
@@ -65,11 +71,6 @@ function UserNotes() {
           .join('');
         setContent(transcript); 
       };
-
-      recognitionRef.current.onerror = (event) => {
-        console.error('Speech error', event.error);
-        setIsListening(false);
-      };
     }
   }, []);
 
@@ -79,7 +80,11 @@ function UserNotes() {
   const fetchNotes = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) { setIsLoading(false); return; }
+      // If not logged in, just stop loading.
+      if (!token) {
+        setIsLoading(false);
+        return; 
+      }
 
       const res = await axios.get(`${API_URL}/notes`, getAuthHeaders());
       setNotes(res.data);
@@ -142,7 +147,7 @@ function UserNotes() {
     }
   };
 
-  // --- UI HELPERS ---
+  // --- UI ACTIONS ---
   const toggleListening = () => {
     if (isListening) {
       recognitionRef.current.stop();
@@ -152,6 +157,11 @@ function UserNotes() {
       recognitionRef.current.start();
       setIsListening(true);
     }
+  };
+
+  const handleLogout = () => {
+      localStorage.removeItem('token');
+      window.location.href = '/login';
   };
 
   const formatDate = (dateString) => {
@@ -164,13 +174,13 @@ function UserNotes() {
   return (
     <div className="min-h-screen w-full bg-[#020617] text-slate-200 relative overflow-hidden selection:bg-indigo-500/30">
       
-      {/* 1. Background Effects */}
+      {/* Background Ambience */}
       <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(circle_at_top,rgba(99,102,241,0.15),transparent_50%)] z-0" />
       <div className="fixed inset-0 pointer-events-none opacity-[0.03] z-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
       
       <div className="relative z-10 max-w-6xl mx-auto p-6 md:p-12">
         
-        {/* 2. Header */}
+        {/* Header */}
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -193,23 +203,19 @@ function UserNotes() {
                 STATUS: {isListening ? 'RECORDING' : 'ONLINE'}
                 </span>
             </div>
-            {/* Manual Logout Only */}
+            
+            {/* LOGOUT BUTTON - CLICK THIS IF IT FAILS */}
             <button 
-                onClick={() => { 
-                    if(window.confirm("Disconnect from system?")) {
-                        localStorage.removeItem('token'); 
-                        window.location.href = '/login'; 
-                    }
-                }} 
+                onClick={handleLogout} 
                 className="p-2 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-full transition-colors border border-white/5"
-                title="Disconnect"
+                title="Disconnect / Logout"
             >
                 <LogOut size={18} />
             </button>
           </div>
         </motion.div>
 
-        {/* 3. Command Deck (Input) */}
+        {/* Input Area */}
         <motion.div 
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -218,7 +224,6 @@ function UserNotes() {
           <div className="absolute -inset-0.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 rounded-2xl opacity-20 group-focus-within:opacity-50 blur transition duration-500" />
           
           <div className="relative bg-[#0A0A0A] rounded-2xl overflow-hidden shadow-2xl border border-white/10">
-            {/* Toolbar */}
             <div className="flex items-center justify-between px-4 py-3 bg-white/5 border-b border-white/5">
                 <div className="flex gap-2">
                     <div className="w-3 h-3 rounded-full bg-red-500/20 border border-red-500/50" />
@@ -230,7 +235,6 @@ function UserNotes() {
                 </div>
             </div>
 
-            {/* Input */}
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -238,7 +242,6 @@ function UserNotes() {
               className="w-full bg-transparent text-lg text-slate-200 p-6 min-h-[160px] outline-none resize-none placeholder:text-slate-600 font-sans leading-relaxed"
             />
 
-            {/* Actions */}
             <div className="px-4 py-4 bg-black/20 backdrop-blur-sm border-t border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <button 
@@ -274,7 +277,7 @@ function UserNotes() {
           </div>
         </motion.div>
 
-        {/* 4. Data Grid (Notes) */}
+        {/* Data Grid */}
         {isLoading ? (
              <div className="flex flex-col items-center justify-center py-20 text-indigo-500/50">
                 <Loader2 size={40} className="animate-spin mb-4" />
@@ -300,12 +303,9 @@ function UserNotes() {
                   layout
                   className="group relative h-full"
                 >
-                    {/* Card Glow */}
                     <div className="absolute -inset-[1px] bg-gradient-to-b from-indigo-500/50 to-transparent rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm" />
                     
                     <div className="relative h-full bg-[#0C0C0C] border border-white/10 rounded-2xl p-6 hover:-translate-y-1 transition-transform duration-300 shadow-2xl flex flex-col">
-                        
-                        {/* Card Header */}
                         <div className="flex justify-between items-start mb-4">
                             <div className="p-2 rounded-lg bg-white/5 border border-white/5 text-indigo-400">
                                 <FileText size={16} />
@@ -316,14 +316,12 @@ function UserNotes() {
                             </div>
                         </div>
 
-                        {/* Card Content */}
                         <div className="mb-6 flex-grow">
                             <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-line font-light">
                                 {note.content}
                             </p>
                         </div>
 
-                        {/* Card Actions (Hidden until hover) */}
                         <div className="pt-4 border-t border-white/5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                             <span className="text-[10px] font-mono text-slate-600 uppercase">ID: {note._id.substring(0,6)}...</span>
                             <div className="flex gap-2">
