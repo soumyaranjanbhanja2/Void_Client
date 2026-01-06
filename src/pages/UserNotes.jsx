@@ -10,7 +10,7 @@ import {
 
 // --- CONFIGURATION ---
 // Switch this to your Render URL when you are ready to go live
-const API_URL = 'http://localhost:10000/api'; 
+const API_URL = 'https://void-server-6.onrender.com'; 
 
 // --- ANIMATIONS ---
 const containerVariants = {
