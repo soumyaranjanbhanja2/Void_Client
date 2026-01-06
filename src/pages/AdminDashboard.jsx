@@ -40,8 +40,8 @@ function AdminDashboard() {
     const token = localStorage.getItem('token');
     
     try {
-      // Ensure port matches your backend
-      await axios.post('http://localhost:10000/api/notifications', formData, {
+      // UPDATED: Using your live Render backend URL
+      await axios.post('https://void-server-6.onrender.com/api/notifications', formData, {
         headers: { 
           'Authorization': token,
           'Content-Type': 'multipart/form-data'
