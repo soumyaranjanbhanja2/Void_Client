@@ -13,10 +13,11 @@ function Signup() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      // Ensure the URL matches your backend port (default was 10000 or 5000)
-      await axios.post('http://localhost:10000/api/signup', formData);
+      // UPDATED: Using your live Render backend URL
+      await axios.post('https://void-server-6.onrender.com/api/signup', formData);
       navigate('/login'); 
     } catch (err) {
+      console.error(err); // Good for debugging
       alert('Error signing up. Please try again.');
     } finally {
       setIsLoading(false);
