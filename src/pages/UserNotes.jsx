@@ -1,16 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 import { 
   Mic, MicOff, Sparkles, Send, Copy, 
   Loader2, FileText, Bot, Command, 
-  Cpu, Hash, Trash2, Edit, LogOut, AlertTriangle
+  Cpu, Hash, Trash2, Edit, LogOut 
 } from 'lucide-react';
+// import { useNavigate } from 'react-router-dom'; // Removed per request
 
 // --- CONFIGURATION ---
-// Default to localhost to fix your errors. 
-// Change to 'https://void-server-6.onrender.com/api' ONLY when you update the live server code.
+// Switch this to your Render URL when you are ready to go live
 const API_URL = 'http://localhost:10000/api'; 
 
 // --- ANIMATIONS ---
@@ -32,7 +31,7 @@ function UserNotes() {
   const [isLoading, setIsLoading] = useState(true);
   
   const recognitionRef = useRef(null);
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Removed auto-navigation
 
   // --- AUTH HELPER ---
   const getAuthHeaders = () => {
@@ -40,15 +39,15 @@ function UserNotes() {
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 
-  // --- ERROR HANDLER (Fixes 403 Crashes) ---
+  // --- ERROR HANDLER (No Auto-Logout) ---
   const handleApiError = (error) => {
     console.error("API Action Failed:", error);
+    
+    // Simply alert the user, do not redirect or clear token
     if (error.response && (error.response.status === 403 || error.response.status === 401)) {
-      alert("⚠️ Session expired. Redirecting to login...");
-      localStorage.removeItem('token');
-      navigate('/login');
+      alert("⚠️ Access Denied: Your session may have expired. Please refresh or log in again manually.");
     } else {
-      alert(`❌ Error: ${error.response?.data?.error || "Server connection failed"}`);
+      alert(`❌ Error: ${error.response?.data?.error || "Connection failed"}`);
     }
   };
 
@@ -84,7 +83,11 @@ function UserNotes() {
   const fetchNotes = async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return setIsLoading(false); // Stop loading if no token (user sees empty state)
+      // If no token, just stop loading, don't redirect
+      if (!token) {
+        setIsLoading(false);
+        return; 
+      }
 
       const res = await axios.get(`${API_URL}/notes`, getAuthHeaders());
       setNotes(res.data);
@@ -198,8 +201,14 @@ function UserNotes() {
                 STATUS: {isListening ? 'RECORDING' : 'ONLINE'}
                 </span>
             </div>
+            {/* Manual Logout Only */}
             <button 
-                onClick={() => { localStorage.removeItem('token'); navigate('/login'); }} 
+                onClick={() => { 
+                    if(window.confirm("Disconnect from system?")) {
+                        localStorage.removeItem('token'); 
+                        window.location.href = '/login'; 
+                    }
+                }} 
                 className="p-2 bg-white/5 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-full transition-colors border border-white/5"
                 title="Disconnect"
             >
