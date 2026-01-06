@@ -16,19 +16,23 @@ function Login() {
     setError('');
 
     try {
-      // Ensure the URL matches your backend port
-      const res = await axios.post('http://localhost:10000/api/login', formData);
+      // UPDATED: Using your live Render backend URL
+      const res = await axios.post('https://void-server-6.onrender.com/api/login', formData);
       
+      // Store token and role in localStorage
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('role', res.data.role);
 
+      // Redirect based on role
       if (res.data.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/notes');
       }
     } catch (err) {
-      setError('Invalid email or password. Please try again.');
+      console.error(err);
+      // specific error message handling
+      setError(err.response?.data?.message || 'Invalid email or password. Please try again.');
     } finally {
       setIsLoading(false);
     }
