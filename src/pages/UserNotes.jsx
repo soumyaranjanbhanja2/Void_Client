@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 
 // --- Configuration ---
+// Make sure you have VITE_OPENAI_API_KEY in your .env file
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
 // --- Animations ---
@@ -49,15 +50,9 @@ function UserNotes() {
           .map(result => result[0])
           .map(result => result.transcript)
           .join('');
-        // Append to existing content or replace? Usually appending is safer for "continuous"
-        // But for this UI, let's just set it to show real-time typing effect
-        // NOTE: A more complex logic is needed to merge perfectly with typed text, 
-        // but this works for pure dictation.
-        setContent(prev => {
-             // Simple logic: if the transcript is new, append it. 
-             // (React state batching makes this tricky, for demo we just set it)
-             return transcript; 
-        });
+        
+        // Update content with real-time transcript
+        setContent(prev => transcript); 
       };
 
       recognitionRef.current.onerror = (event) => {
@@ -66,8 +61,7 @@ function UserNotes() {
       };
       
       recognitionRef.current.onend = () => {
-          // Auto-restart if we didn't manually stop (optional)
-          // setIsListening(false);
+          // Optional: Auto-restart logic can go here
       };
     }
   }, []);
@@ -78,7 +72,8 @@ function UserNotes() {
       const token = localStorage.getItem('token');
       if (!token) { setIsLoading(false); return; }
 
-      const res = await axios.get('http://localhost:10000/api/notes', {
+      // UPDATED: Using live Render URL
+      const res = await axios.get('https://void-server-6.onrender.com/api/notes', {
         headers: { Authorization: `Bearer ${token}` }
       });
       setNotes(res.data);
@@ -94,7 +89,8 @@ function UserNotes() {
     
     const token = localStorage.getItem('token');
     try {
-      const res = await axios.post('http://localhost:10000/api/notes', 
+      // UPDATED: Using live Render URL
+      const res = await axios.post('https://void-server-6.onrender.com/api/notes', 
         { content: noteContent }, 
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -110,13 +106,13 @@ function UserNotes() {
     
     setIsGenerating(true);
 
-    // --- MOCK AI (Use this if 429 Error persists) ---
+    // --- MOCK AI (Uncomment if you want to save credits) ---
     // setTimeout(() => {
-    //    handleSaveNote("✨ AI SUMMARY:\n• Analyzed input data.\n• Identified key patterns.\n• System status: Optimal.");
-    //    setIsGenerating(false);
+    //   handleSaveNote("✨ AI SUMMARY:\n• Analyzed input data.\n• Identified key patterns.\n• System status: Optimal.");
+    //   setIsGenerating(false);
     // }, 2000);
     
-    // --- REAL AI (Uncomment when API Key works) ---
+    // --- REAL AI ---
     try {
       const response = await axios.post(
         'https://api.openai.com/v1/chat/completions',
@@ -185,7 +181,7 @@ function UserNotes() {
           <div>
             <div className="flex items-center gap-2 text-indigo-400 font-mono text-xs tracking-widest uppercase mb-2">
               <Cpu size={14} />
-              <span>Notes Generator v-1</span>
+              <span>Notes Generator v-2.0</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
               Notes <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400"> Generation</span>
@@ -246,7 +242,7 @@ function UserNotes() {
                   }`}
                 >
                     {isListening && (
-                         <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
+                          <div className="absolute inset-0 bg-red-500/10 animate-pulse" />
                     )}
                     {isListening ? <MicOff size={18} /> : <Mic size={18} />}
                     {isListening && <span className="text-xs font-bold animate-pulse">REC</span>}
