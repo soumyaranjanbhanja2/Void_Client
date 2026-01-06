@@ -7,15 +7,24 @@ export default function Notes() {
   const [input, setInput] = useState('');
   const [msg, setMsg] = useState('');
 
-  const loadNotes = () => api.get('http:/localhost:10000/api/notes').then((r) => setNotes(r.data)).catch(() => setNotes([]));
+  // UPDATED: Using live Render URL
+  const loadNotes = () => 
+    api.get('https://void-server-6.onrender.com/api/notes')
+      .then((r) => setNotes(r.data))
+      .catch(() => setNotes([]));
+
   useEffect(() => { loadNotes(); }, []);
 
   const generateNote = async () => {
     const data = input.trim();
     if (!data) return setMsg('⚠️ Provide content to generate a note.');
+    
+    // Auto-generate a title from the first line
     const title = data.split('\n')[0].slice(0, 60) || 'Generated Note';
+    
     try {
-      await api.post('/notes', { title, content: data });
+      // UPDATED: Full URL to ensure connection
+      await api.post('https://void-server-6.onrender.com/api/notes', { title, content: data });
       setMsg('✅ Note generated successfully.');
       setInput('');
       loadNotes();
@@ -25,7 +34,8 @@ export default function Notes() {
   };
 
   const deleteNote = async (id) => {
-    await api.delete(`/notes/${id}`);
+    // UPDATED: Full URL
+    await api.delete(`https://void-server-6.onrender.com/api/notes/${id}`);
     loadNotes();
   };
 
@@ -34,14 +44,17 @@ export default function Notes() {
     if (newTitle === null) return;
     const newContent = prompt('Update content:', n.content || '');
     if (newContent === null) return;
-    await api.put(`/notes/${n._id}`, { title: newTitle, content: newContent });
+    
+    // UPDATED: Full URL
+    await api.put(`https://void-server-6.onrender.com/api/notes/${n._id}`, { title: newTitle, content: newContent });
     loadNotes();
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-black px-4 py-8">
       <div className="grid grid-cols-12 gap-6 max-w-6xl mx-auto">
-        {/* Generate Notes */}
+        
+        {/* Generate Notes Section */}
         <section className="card col-span-12 md:col-span-6">
           <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
             <FaStickyNote /> Generate Notes
@@ -63,7 +76,7 @@ export default function Notes() {
           {msg && <div className="mt-4 text-center text-sm text-gray-200 bg-black/40 px-4 py-2 rounded-lg animate-slideUp">{msg}</div>}
         </section>
 
-        {/* Notes List */}
+        {/* Notes List Section */}
         <section className="card col-span-12 md:col-span-6">
           <h2 className="text-xl font-bold text-white mb-2">Your notes</h2>
           <div className="flex flex-col gap-3">
