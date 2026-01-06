@@ -25,8 +25,8 @@ function Home() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 👇 THIS WAS THE FIX: Added '/api' to the URL
-    axios.get('http://localhost:10000/api/notifications') 
+    // UPDATED: Using your live Render backend URL
+    axios.get('https://void-server-6.onrender.com/api/notifications') 
       .then(res => setNotifications(res.data))
       .catch(err => console.error(err))
       .finally(() => setLoading(false));
@@ -98,13 +98,13 @@ function Home() {
                 {/* Card Content */}
                 <div className="p-5 flex-1 flex flex-col relative z-20">
                   <div className="-mt-10 mb-2">
-                     <span className="inline-block px-3 py-1 bg-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-wider rounded-full backdrop-blur-sm border border-cyan-500/20">
+                      <span className="inline-block px-3 py-1 bg-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-wider rounded-full backdrop-blur-sm border border-cyan-500/20">
                         Update
-                     </span>
+                      </span>
                   </div>
                   
                   <h3 className="text-lg font-semibold text-slate-100 mb-2 leading-snug">
-                     {notif.message.substring(0, 50)}{notif.message.length > 50 ? "..." : ""}
+                      {notif.message.substring(0, 50)}{notif.message.length > 50 ? "..." : ""}
                   </h3>
                   
                   <p className="text-slate-400 text-sm leading-relaxed mb-4 flex-grow">
