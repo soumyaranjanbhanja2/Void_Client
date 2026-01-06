@@ -6,11 +6,10 @@ import {
   Loader2, FileText, Bot, Command, 
   Cpu, Hash, Trash2, Edit, LogOut 
 } from 'lucide-react';
-// import { useNavigate } from 'react-router-dom'; // Removed per request
 
 // --- CONFIGURATION ---
-// Switch this to your Render URL when you are ready to go live
-const API_URL = 'https://void-server-6.onrender.com'; 
+// Reverted to LIVE SERVER as requested
+const API_URL = 'https://void-server-6.onrender.com/api'; 
 
 // --- ANIMATIONS ---
 const containerVariants = {
@@ -31,7 +30,6 @@ function UserNotes() {
   const [isLoading, setIsLoading] = useState(true);
   
   const recognitionRef = useRef(null);
-  // const navigate = useNavigate(); // Removed auto-navigation
 
   // --- AUTH HELPER ---
   const getAuthHeaders = () => {
@@ -39,13 +37,11 @@ function UserNotes() {
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 
-  // --- ERROR HANDLER (No Auto-Logout) ---
+  // --- ERROR HANDLER ---
   const handleApiError = (error) => {
     console.error("API Action Failed:", error);
-    
-    // Simply alert the user, do not redirect or clear token
     if (error.response && (error.response.status === 403 || error.response.status === 401)) {
-      alert("⚠️ Access Denied: Your session may have expired. Please refresh or log in again manually.");
+      alert("⚠️ Session expired. Please login again.");
     } else {
       alert(`❌ Error: ${error.response?.data?.error || "Connection failed"}`);
     }
@@ -83,11 +79,7 @@ function UserNotes() {
   const fetchNotes = async () => {
     try {
       const token = localStorage.getItem('token');
-      // If no token, just stop loading, don't redirect
-      if (!token) {
-        setIsLoading(false);
-        return; 
-      }
+      if (!token) { setIsLoading(false); return; }
 
       const res = await axios.get(`${API_URL}/notes`, getAuthHeaders());
       setNotes(res.data);
@@ -187,7 +179,7 @@ function UserNotes() {
           <div>
             <div className="flex items-center gap-2 text-indigo-400 font-mono text-xs tracking-widest uppercase mb-2">
               <Cpu size={14} />
-              <span>System v-2.0 // Connected: Localhost</span>
+              <span>System v-2.0 // Connected: Live Server</span>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-white">
               Notes <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400"> Generation</span>
