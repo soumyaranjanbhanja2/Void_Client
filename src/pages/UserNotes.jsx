@@ -9,7 +9,7 @@ import {
 
 // --- Configuration ---
 // Make sure you have VITE_OPENAI_API_KEY in your .env file
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY ;
+const OPENAI_API_KEY = import.meta.env.OPENAI_API_KEY ;
 
 // --- Animations ---
 const containerVariants = {
