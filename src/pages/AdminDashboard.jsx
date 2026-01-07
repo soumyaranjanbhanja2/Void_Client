@@ -1,63 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  ShieldAlert, Users, Bell, Trash2, 
-  LogOut, X, Upload, CheckCircle, 
-  AlertCircle, Loader2, Image as ImageIcon 
-} from 'lucide-react';
-
-// --- CONFIGURATION ---
-const API_URL = 'http://localhost:10000/api'; 
+import { Upload, X, Send, Image as ImageIcon, MessageSquare, Loader2, CheckCircle } from 'lucide-react';
 
 function AdminDashboard() {
-  // --- STATE: Dashboard Data ---
-  const [users, setUsers] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // --- STATE: Notification Form ---
   const [message, setMessage] = useState('');
-  const [title, setTitle] = useState(''); // Added Title field back
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [status, setStatus] = useState({ type: '', msg: '' });
+  const [isLoading, setIsLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  // --- AUTH HELPER ---
-  const getAuthHeaders = (isMultipart = false) => {
-    const token = localStorage.getItem('token');
-    const headers = { Authorization: `Bearer ${token}` };
-    if (isMultipart) {
-      headers['Content-Type'] = 'multipart/form-data';
-    }
-    return { headers };
-  };
-
-  // --- INITIALIZATION ---
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      const usersRes = await axios.get(`${API_URL}/admin/users`, getAuthHeaders());
-      setUsers(usersRes.data);
-
-      const notifRes = await axios.get(`${API_URL}/notifications`, getAuthHeaders());
-      setNotifications(notifRes.data);
-    } catch (err) {
-      if (err.response && (err.response.status === 403 || err.response.status === 401)) {
-        alert("⛔ Session Expired.");
-        window.location.href = '/login';
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // --- HANDLER: File Selection ---
-  const handleFileChange = (e) => {
+  // Handle Image Selection & Preview
+  const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
       setImage(file);
@@ -65,243 +19,216 @@ function AdminDashboard() {
     }
   };
 
-  const clearImage = () => {
+  // Remove Image
+  const removeImage = () => {
     setImage(null);
     setPreview(null);
   };
 
-  // --- HANDLER: Create Notification (With Image) ---
-  const handleCreateNotification = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setStatus({ type: '', msg: '' });
-    setIsUploading(true);
-
-    const formData = new FormData();
-    formData.append('title', title);
-    formData.append('message', message);
-    if (image) {
-      formData.append('image', image);
+    if (!message || !image) {
+      alert("Please provide both a message and an image.");
+      return;
     }
 
+    setIsLoading(true);
+    const formData = new FormData();
+    formData.append('message', message);
+    formData.append('image', image);
+
+    const token = localStorage.getItem('token');
+    
     try {
-      // Sending with Multipart Headers
-      const res = await axios.post(
-        `${API_URL}/notifications`, 
-        formData, 
-        getAuthHeaders(true) // true = multipart
-      );
+      // Ensure port matches your backend
+      await axios.post('http://localhost:10000/api/notifications', formData, {
+        headers: { 
+          'Authorization': token,
+          'Content-Type': 'multipart/form-data'
+        }
+      });
       
-      setNotifications([res.data, ...notifications]);
-      setStatus({ type: 'success', msg: 'Broadcast sent successfully!' });
-      
-      // Reset Form
-      setMessage('');
-      setTitle('');
-      clearImage();
+      // Success Animation Trigger
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        setMessage('');
+        removeImage();
+      }, 3000);
+
     } catch (err) {
       console.error(err);
-      setStatus({ type: 'error', msg: 'Upload Failed: ' + (err.response?.data?.message || "Server Error") });
+      alert('Upload failed. Check console for details.');
     } finally {
-      setIsUploading(false);
+      setIsLoading(false);
     }
-  };
-
-  // --- HANDLER: Delete Actions ---
-  const handleDeleteUser = async (userId) => {
-    if (!window.confirm("Permanently delete this user?")) return;
-    try {
-      await axios.delete(`${API_URL}/admin/users/${userId}`, getAuthHeaders());
-      setUsers(users.filter(u => u._id !== userId));
-    } catch (err) { alert("Failed to delete user."); }
-  };
-
-  const handleDeleteNotification = async (id) => {
-    if (!window.confirm("Remove this alert?")) return;
-    try {
-      await axios.delete(`${API_URL}/notifications/${id}`, getAuthHeaders());
-      setNotifications(notifications.filter(n => n._id !== id));
-    } catch (err) { alert("Failed to delete notification."); }
   };
 
   return (
-    <div className="min-h-screen bg-[#020617] text-slate-200 p-6 md:p-12 font-sans relative overflow-hidden">
+    <div className="min-h-screen w-full bg-slate-900 text-white p-6 md:p-12">
       
-      {/* Background Ambience */}
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_top_right,rgba(99,102,241,0.1),transparent_50%)]" />
+      {/* Dashboard Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-4xl mx-auto mb-10"
+      >
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
+          Admin <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">Dashboard</span>
+        </h1>
+        <p className="text-slate-400 mt-2">Manage global announcements and push notifications.</p>
+      </motion.div>
 
-      {/* Header */}
-      <div className="relative z-10 max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-end mb-12 border-b border-white/10 pb-6">
-        <div>
-          <div className="flex items-center gap-2 text-red-400 font-mono text-xs tracking-widest uppercase mb-2">
-            <ShieldAlert size={14} />
-            <span>Admin Control Center</span>
-          </div>
-          <h1 className="text-4xl font-bold text-white">System <span className="text-indigo-500">Dashboard</span></h1>
-        </div>
-        <button 
-          onClick={() => { localStorage.removeItem('token'); window.location.href='/login'; }}
-          className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-red-500/10 text-slate-400 hover:text-red-400 rounded-lg transition-colors"
-        >
-          <LogOut size={16} /> <span>Logout</span>
-        </button>
-      </div>
-
-      <div className="relative z-10 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Main Form Card */}
+      <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
         
-        {/* LEFT COLUMN: User Management */}
-        <div className="lg:col-span-2 space-y-8">
-          <div className="bg-[#0A0A0A] border border-white/10 rounded-2xl p-6 shadow-xl">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <Users className="text-indigo-500" /> User Database
-                <span className="text-xs bg-indigo-500/20 text-indigo-300 px-2 py-1 rounded-full">{users.length} Active</span>
-              </h2>
-            </div>
+        {/* Left Col: The Form */}
+        <motion.div 
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.1 }}
+          className="md:col-span-2"
+        >
+          <div className="bg-slate-800/40 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+            
+            {/* Success Overlay */}
+            <AnimatePresence>
+              {success && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 bg-slate-800/95 z-20 flex flex-col items-center justify-center text-center"
+                >
+                  <motion.div 
+                    initial={{ scale: 0.5 }}
+                    animate={{ scale: 1.2 }} 
+                    className="text-green-400 mb-4"
+                  >
+                    <CheckCircle size={64} />
+                  </motion.div>
+                  <h3 className="text-2xl font-bold text-white">Published!</h3>
+                  <p className="text-slate-400">Your notification is now live.</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="text-xs font-mono text-slate-500 border-b border-white/10">
-                    <th className="p-3">ID / EMAIL</th>
-                    <th className="p-3">ROLE</th>
-                    <th className="p-3 text-right">ACTION</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm">
-                  {users.map(user => (
-                    <tr key={user._id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
-                      <td className="p-3">
-                        <div className="text-white">{user.email}</div>
-                        <div className="text-[10px] font-mono text-slate-600">{user._id}</div>
-                      </td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wide ${user.role === 'admin' ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        <button 
-                          onClick={() => handleDeleteUser(user._id)}
-                          className="p-2 hover:bg-red-500/20 text-slate-500 hover:text-red-400 rounded transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {users.length === 0 && !isLoading && <div className="text-center py-10 text-slate-500">No users found.</div>}
-            </div>
-          </div>
-        </div>
+            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+              <span className="p-2 bg-cyan-500/10 rounded-lg text-cyan-400"><Send size={20}/></span>
+              Create New Notification
+            </h2>
 
-        {/* RIGHT COLUMN: Notifications (With Image Upload) */}
-        <div className="space-y-8">
-          
-          {/* Create Notification Form */}
-          <div className="bg-[#0A0A0A] border border-white/10 rounded-2xl p-6 shadow-xl">
-             <h2 className="text-xl font-bold text-white flex items-center gap-2 mb-4">
-                <Bell className="text-yellow-500" /> Broadcast
-             </h2>
-             
-             <form onSubmit={handleCreateNotification} className="space-y-4">
-                {/* Title Input */}
-                <input 
-                  type="text" 
-                  placeholder="Subject / Title"
-                  value={title}
-                  onChange={e => setTitle(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none transition-colors"
-                  required
-                />
-                
-                {/* Message Input */}
-                <textarea 
-                  placeholder="Message content..."
-                  value={message}
-                  onChange={e => setMessage(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white focus:border-indigo-500 outline-none transition-colors h-24 resize-none"
-                  required
-                />
-
-                {/* Image Upload Area */}
-                <div className="space-y-2">
-                  {!preview ? (
-                    <label className="flex flex-col items-center justify-center w-full h-24 border border-dashed border-white/10 rounded-xl cursor-pointer hover:border-indigo-500/30 hover:bg-white/5 transition-all group">
-                      <div className="flex flex-col items-center justify-center pt-2 pb-3">
-                        <Upload className="w-6 h-6 mb-1 text-slate-600 group-hover:text-indigo-400 transition-colors" />
-                        <p className="text-[10px] text-slate-500 uppercase tracking-widest">Attach Image</p>
-                      </div>
-                      <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-                    </label>
-                  ) : (
-                    <div className="relative w-full h-32 bg-black rounded-xl overflow-hidden group border border-white/10">
-                      <img src={preview} alt="Preview" className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
-                      <button 
-                        type="button"
-                        onClick={clearImage}
-                        className="absolute top-2 right-2 p-1 bg-black/60 hover:bg-red-500/80 text-white rounded-full backdrop-blur-sm transition-all"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  )}
+            <form onSubmit={handleSubmit} className="space-y-6">
+              
+              {/* Message Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Announcement Text</label>
+                <div className="relative">
+                  <MessageSquare className="absolute top-3 left-3 text-slate-500" size={18} />
+                  <textarea 
+                    value={message}
+                    onChange={e => setMessage(e.target.value)}
+                    placeholder="What's new today?" 
+                    rows="3"
+                    className="w-full bg-slate-900/50 border border-slate-700 rounded-xl py-3 pl-10 pr-4 text-slate-200 focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all outline-none resize-none"
+                  />
                 </div>
+              </div>
 
-                {/* Status Messages */}
-                {status.msg && (
-                   <motion.div 
-                     initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                     className={`p-3 rounded-lg flex items-center gap-2 text-xs ${
-                       status.type === 'error' ? 'bg-red-500/10 text-red-400' : 'bg-green-500/10 text-green-400'
-                     }`}
-                   >
-                     {status.type === 'error' ? <AlertCircle size={14} /> : <CheckCircle size={14} />}
-                     <span>{status.msg}</span>
-                   </motion.div>
+              {/* Image Upload Area */}
+              <div className="space-y-2">
+                <label className="text-xs font-medium text-slate-400 uppercase tracking-wide">Featured Image</label>
+                
+                {!preview ? (
+                  /* Upload Placeholder */
+                  <div className="relative border-2 border-dashed border-slate-700 bg-slate-900/30 hover:bg-slate-900/50 rounded-xl p-8 transition-colors group text-center cursor-pointer">
+                    <input 
+                      type="file" 
+                      onChange={handleImageChange} 
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    />
+                    <div className="flex flex-col items-center justify-center text-slate-500 group-hover:text-cyan-400 transition-colors">
+                      <div className="p-3 bg-slate-800 rounded-full mb-3 group-hover:scale-110 transition-transform">
+                        <Upload size={24} />
+                      </div>
+                      <p className="font-medium">Click to upload or drag and drop</p>
+                      <p className="text-xs text-slate-600 mt-1">SVG, PNG, JPG (Max 800x400px)</p>
+                    </div>
+                  </div>
+                ) : (
+                  /* Image Preview */
+                  <div className="relative rounded-xl overflow-hidden border border-slate-700 group">
+                    <img src={preview} alt="Preview" className="w-full h-64 object-cover" />
+                    <button 
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute top-2 right-2 p-2 bg-black/60 hover:bg-red-500 text-white rounded-full backdrop-blur-sm transition-colors"
+                    >
+                      <X size={16} />
+                    </button>
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                      <p className="text-xs text-white font-mono truncate">{image.name}</p>
+                    </div>
+                  </div>
                 )}
+              </div>
 
-                {/* Submit Button */}
+              {/* Action Buttons */}
+              <div className="pt-4 flex items-center justify-end gap-4">
+                <button 
+                  type="button"
+                  onClick={() => { setMessage(''); removeImage(); }}
+                  className="px-4 py-2 text-slate-400 hover:text-white transition-colors text-sm font-medium"
+                >
+                  Clear
+                </button>
                 <button 
                   type="submit" 
-                  disabled={isUploading}
-                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition-all flex justify-center items-center gap-2 disabled:opacity-50"
+                  disabled={isLoading}
+                  className="bg-gradient-to-r from-cyan-500 to-blue-600 hover:shadow-lg hover:shadow-cyan-500/25 text-white px-6 py-2 rounded-lg font-medium transition-all flex items-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {isUploading ? <Loader2 className="animate-spin" size={18} /> : "SEND BROADCAST"}
+                  {isLoading ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
+                  {isLoading ? 'Publishing...' : 'Publish Now'}
                 </button>
-             </form>
+              </div>
+            </form>
+          </div>
+        </motion.div>
+
+        {/* Right Col: Mini Preview / Stats (Optional UI Filler) */}
+        <motion.div 
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-6"
+        >
+          {/* Quick Info Card */}
+          <div className="bg-slate-800/40 border border-slate-700/50 rounded-2xl p-6">
+            <h3 className="text-slate-300 font-semibold mb-4 flex items-center gap-2">
+              <ImageIcon size={18} /> Live Preview
+            </h3>
+            <div className="text-sm text-slate-500">
+              <p className="mb-4">This is how your post will look on the user home feed.</p>
+              
+              {/* Mini Skeleton of a Card */}
+              <div className="bg-slate-900/80 rounded-lg p-3 border border-slate-700/50 opacity-80 pointer-events-none">
+                <div className="h-24 bg-slate-800 rounded-md mb-3 overflow-hidden">
+                  {preview && <img src={preview} className="w-full h-full object-cover" alt="" />}
+                </div>
+                <div className="h-2 w-3/4 bg-slate-700 rounded mb-2"></div>
+                <div className="h-2 w-1/2 bg-slate-700 rounded"></div>
+              </div>
+            </div>
           </div>
 
-          {/* Active Notifications List */}
-          <div className="bg-[#0A0A0A] border border-white/10 rounded-2xl p-6 shadow-xl">
-             <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4">Active Alerts</h3>
-             <div className="space-y-3">
-                {notifications.map(note => (
-                  <div key={note._id} className="group relative bg-white/5 border border-white/5 rounded-xl p-4 hover:border-white/10 transition-colors">
-                     <button 
-                        onClick={() => handleDeleteNotification(note._id)}
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 text-red-400 rounded transition-all"
-                     >
-                        <X size={14} />
-                     </button>
-                     
-                     {/* Show Image Thumbnail if exists */}
-                     {note.image && (
-                        <div className="mb-3 rounded-lg overflow-hidden h-32 border border-white/5">
-                            <img src={note.image} alt="Attachment" className="w-full h-full object-cover" />
-                        </div>
-                     )}
-
-                     <h4 className="font-bold text-white text-sm mb-1">{note.title}</h4>
-                     <p className="text-xs text-slate-400 leading-relaxed">{note.message}</p>
-                  </div>
-                ))}
-                {notifications.length === 0 && <p className="text-xs text-slate-600 italic">No active system alerts.</p>}
-             </div>
+          <div className="p-4 rounded-xl bg-blue-500/10 border border-blue-500/20">
+            <h4 className="text-blue-400 text-sm font-bold mb-1">Pro Tip</h4>
+            <p className="text-blue-300/70 text-xs">
+              High-quality images (16:9 ratio) get 40% more engagement from users.
+            </p>
           </div>
+        </motion.div>
 
-        </div>
       </div>
     </div>
   );
