@@ -8,8 +8,7 @@ import {
 } from 'lucide-react';
 
 // --- CONFIGURATION ---
-// 🔴 CHANGED: Connected to Live Render Server
-const API_URL = 'https://void-server-6.onrender.com/api'; 
+const API_URL = 'http://localhost:10000/api'; 
 
 function AdminDashboard() {
   // --- STATE: Dashboard Data ---
@@ -19,7 +18,7 @@ function AdminDashboard() {
 
   // --- STATE: Notification Form ---
   const [message, setMessage] = useState('');
-  const [title, setTitle] = useState(''); 
+  const [title, setTitle] = useState(''); // Added Title field back
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -48,8 +47,6 @@ function AdminDashboard() {
       const notifRes = await axios.get(`${API_URL}/notifications`, getAuthHeaders());
       setNotifications(notifRes.data);
     } catch (err) {
-      console.error("Fetch Error:", err);
-      // Only redirect if explicitly denied, otherwise might just be server waking up
       if (err.response && (err.response.status === 403 || err.response.status === 401)) {
         alert("⛔ Session Expired.");
         window.location.href = '/login';
@@ -87,6 +84,7 @@ function AdminDashboard() {
     }
 
     try {
+      // Sending with Multipart Headers
       const res = await axios.post(
         `${API_URL}/notifications`, 
         formData, 
@@ -102,7 +100,7 @@ function AdminDashboard() {
       clearImage();
     } catch (err) {
       console.error(err);
-      setStatus({ type: 'error', msg: 'Upload Failed: ' + (err.response?.data?.message || "Server might be waking up...") });
+      setStatus({ type: 'error', msg: 'Upload Failed: ' + (err.response?.data?.message || "Server Error") });
     } finally {
       setIsUploading(false);
     }
