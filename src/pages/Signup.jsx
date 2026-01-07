@@ -1,24 +1,38 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { User, Mail, Lock, Shield, ArrowRight, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { User, Mail, Lock, Shield, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 
 function Signup() {
   const [formData, setFormData] = useState({ username: '', email: '', password: '', role: 'user' });
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null); // New state to handle errors
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
+    setError(null); // Clear previous errors
+    
     try {
       // UPDATED: Using your live Render backend URL
-      await axios.post('https://void-server-6.onrender.com/api/signup', formData);
+      const response = await axios.post('https://void-server-6.onrender.com/api/signup', formData);
+      console.log('Signup success:', response.data);
       navigate('/login'); 
     } catch (err) {
-      console.error(err); // Good for debugging
-      alert('Error signing up. Please try again.');
+      console.error("Signup Error Details:", err);
+      
+      // LOGIC: Extract the exact message sent by the backend
+      if (err.response && err.response.data) {
+        // Backend usually sends { message: "..." } or { error: "..." }
+        const serverMsg = err.response.data.message || err.response.data.error || "Signup failed. Please try again.";
+        setError(serverMsg);
+      } else if (err.message) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -50,6 +64,21 @@ function Signup() {
           <div className="p-8">
             <form onSubmit={handleSubmit} className="space-y-5">
               
+              {/* ERROR MESSAGE DISPLAY */}
+              <AnimatePresence>
+                {error && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="bg-red-500/10 border border-red-500/50 rounded-lg p-3 flex items-center gap-3 text-red-200 text-sm"
+                  >
+                    <AlertCircle size={18} className="text-red-400 shrink-0" />
+                    <span>{error}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              
               {/* Username Input */}
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-300 uppercase tracking-wide ml-1">Username</label>
@@ -62,6 +91,7 @@ function Signup() {
                     required
                     className="w-full bg-slate-900/50 border border-slate-700 text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 block pl-10 p-3 transition-all placeholder:text-slate-600 outline-none" 
                     placeholder="Enter Your Username" 
+                    value={formData.username}
                     onChange={e => setFormData({...formData, username: e.target.value})} 
                   />
                 </div>
@@ -79,6 +109,7 @@ function Signup() {
                     required
                     className="w-full bg-slate-900/50 border border-slate-700 text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 block pl-10 p-3 transition-all placeholder:text-slate-600 outline-none" 
                     placeholder="Enter Email:" 
+                    value={formData.email}
                     onChange={e => setFormData({...formData, email: e.target.value})} 
                   />
                 </div>
@@ -96,12 +127,13 @@ function Signup() {
                     required
                     className="w-full bg-slate-900/50 border border-slate-700 text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 block pl-10 p-3 transition-all placeholder:text-slate-600 outline-none" 
                     placeholder="******" 
+                    value={formData.password}
                     onChange={e => setFormData({...formData, password: e.target.value})} 
                   />
                 </div>
               </div>
 
-              {/* Role Selection (Styled Custom Select) */}
+              {/* Role Selection */}
               <div className="space-y-2">
                 <label className="text-xs font-medium text-slate-300 uppercase tracking-wide ml-1">Account Role</label>
                 <div className="relative group">
@@ -110,19 +142,19 @@ function Signup() {
                   </div>
                   <select 
                     className="w-full bg-slate-900/50 border border-slate-700 text-slate-100 text-sm rounded-lg focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 block pl-10 p-3 transition-all outline-none appearance-none cursor-pointer hover:bg-slate-900/70"
+                    value={formData.role}
                     onChange={e => setFormData({...formData, role: e.target.value})}
                   >
                     <option value="user">User Account</option>
                     <option value="admin">Administrator</option>
                   </select>
-                  {/* Custom arrow icon for the select box */}
                   <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-slate-500">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                   </div>
                 </div>
               </div>
 
-              {/* Submit Button with Loading State */}
+              {/* Submit Button */}
               <motion.button 
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
